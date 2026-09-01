@@ -1,5 +1,4 @@
 const OFFSCREEN_PATHS = {
-  nsfwjs: chrome.runtime.getURL('offscreen.html'),
   onnx: chrome.runtime.getURL('offscreen-onnx.html'),
   text: chrome.runtime.getURL('offscreen-text.html')
 };
@@ -8,11 +7,11 @@ const LOG_LIMIT = 500;
 
 async function getImageBackend() {
   const { config = {} } = await chrome.storage.local.get(['config']);
-  return config.imageBackend || 'nsfwjs';
+  return config.imageBackend || 'onnx';
 }
 
 async function setupOffscreen(kind) {
-  const url = OFFSCREEN_PATHS[kind] || OFFSCREEN_PATHS.nsfwjs;
+  const url = OFFSCREEN_PATHS[kind] || OFFSCREEN_PATHS.onnx;
   const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
   if (contexts.length > 0 && contexts[0].documentUrl === url) return;
   if (contexts.length > 0) await chrome.offscreen.closeDocument();

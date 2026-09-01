@@ -42,7 +42,6 @@ async function loadData() {
 const DEFAULT_ONNX_MODEL = 'https://huggingface.co/OwenElliott/image-safety-classifier-s/resolve/main/onnx/image-safety-classifier-s.onnx';
 const FALCONSAI_MODEL_URL = 'https://huggingface.co/Falconsai/nsfw_image_detection_26/resolve/main/quantized_onnx/model.onnx';
 const BACKEND_BLOCKED_CATEGORIES = {
-  nsfwjs: ['Porn', 'Hentai', 'Sexy'],
   onnx: ['NSFW', 'NSFL']
 };
 const ONNX_MODEL_PRESETS = {
@@ -51,9 +50,9 @@ const ONNX_MODEL_PRESETS = {
 };
 
 function renderSettings() {
-  $('imageBackend').value = currentConfig.imageBackend ?? 'nsfwjs';
+  $('imageBackend').value = currentConfig.imageBackend ?? 'onnx';
   $('onnxModelUrl').value = currentConfig.onnxModelUrl ?? DEFAULT_ONNX_MODEL;
-  $('blockedCategories').value = (currentConfig.blockedCategories ?? BACKEND_BLOCKED_CATEGORIES.nsfwjs).join(', ');
+  $('blockedCategories').value = (currentConfig.blockedCategories ?? BACKEND_BLOCKED_CATEGORIES.onnx).join(', ');
   $('sensitivity').value = currentConfig.sensitivity ?? 0.7;
   $('sensitivity-val').textContent = $('sensitivity').value;
   $('imageMode').value = currentConfig.imageMode ?? 'blur';

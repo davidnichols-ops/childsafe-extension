@@ -6,7 +6,9 @@ const srcDir = 'src';
 const outDir = 'dist';
 
 function copyStatic() {
-  for (const file of ['manifest.json', 'options.html', 'offscreen.html', 'offscreen-onnx.html', 'offscreen-text.html', 'popup.html', 'styles.css', 'test.html']) {
+  // offscreen.html (nsfwjs) is intentionally excluded — ONNX is the default and only shipped backend.
+  // test.html is a dev-only page and must not ship in the store package.
+  for (const file of ['manifest.json', 'options.html', 'offscreen-onnx.html', 'offscreen-text.html', 'popup.html', 'styles.css']) {
     const from = path.join(srcDir, file);
     const to = path.join(outDir, file);
     if (fs.existsSync(from)) fs.copyFileSync(from, to);
@@ -15,18 +17,24 @@ function copyStatic() {
     fs.cpSync('config', path.join(outDir, 'config'), { recursive: true, force: true });
   }
 
-  // Bundle ONNX Runtime Web for the optional ONNX backend.
+  // Bundle ONNX Runtime Web for the image classification backend.
   const ortDir = 'node_modules/onnxruntime-web/dist';
   if (fs.existsSync(ortDir)) {
     fs.mkdirSync(path.join(outDir, 'ort'), { recursive: true });
     // Main wasm-only IIFE bundle (~50 kB); it dynamically loads the Emscripten .mjs wrapper and .wasm binary.
     fs.copyFileSync(path.join(ortDir, 'ort.wasm.min.js'), path.join(outDir, 'ort.js'));
-    // Copy the matching threaded .mjs wrappers and .wasm binaries so the runtime can locate them.
-    for (const file of fs.readdirSync(ortDir)) {
-      if (file.startsWith('ort-wasm-simd-threaded') && (file.endsWith('.mjs') || file.endsWith('.wasm'))) {
-        fs.copyFileSync(path.join(ortDir, file), path.join(outDir, 'ort', file));
-      }
+    // Only copy the base SIMD-threaded variant. The asyncify/jsep/jspi variants (~55 MB) are
+    // not needed with numThreads=1 and the wasm execution provider.
+    for (const ext of ['.mjs', '.wasm']) {
+      const file = `ort-wasm-simd-threaded${ext}`;
+      const src = path.join(ortDir, file);
+      if (fs.existsSync(src)) fs.copyFileSync(src, path.join(outDir, 'ort', file));
     }
+  }
+
+  // Copy extension icons.
+  if (fs.existsSync('icons')) {
+    fs.cpSync('icons', path.join(outDir, 'icons'), { recursive: true, force: true });
   }
 }
 
@@ -38,10 +46,10 @@ async function build() {
     entryPoints: [
       path.join(srcDir, 'background.js'),
       path.join(srcDir, 'content.js'),
-      path.join(srcDir, 'offscreen.js'),
       path.join(srcDir, 'offscreen-onnx.js'),
       path.join(srcDir, 'offscreen-text.js'),
-      path.join(srcDir, 'options.js')
+      path.join(srcDir, 'options.js'),
+      path.join(srcDir, 'popup.js')
     ],
     bundle: true,
     outdir: outDir,

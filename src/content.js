@@ -5,7 +5,7 @@ let config = {
   textBackend: 'regex',
   textModel: 'Xenova/toxic-bert',
   textBlockedCategories: ['toxic', 'severe_toxic', 'threat', 'identity_hate'],
-  blockedCategories: ['Porn', 'Hentai', 'Sexy']
+  blockedCategories: ['NSFW', 'NSFL']
 };
 const seen = new WeakSet();
 
