@@ -1,0 +1,18 @@
+{
+  "schema": "childsafe/policy/v1",
+  "sensitivity": 0.7,
+  "imageMode": "blur",
+  "textEnabled": true,
+  "networkBlockEnabled": true,
+  "allowedSites": [],
+  "blockedSites": [],
+  "piiPatterns": [
+    { "name": "phone", "regex": "\\b\\d{3}[-.\\s]?\\d{3}[-.\\s]?\\d{4}\\b", "severity": "warn" },
+    { "name": "email", "regex": "\\S+@\\S+\\.\\S+", "severity": "warn" },
+    { "name": "ssn", "regex": "\\b\\d{3}-\\d{2}-\\d{4}\\b", "severity": "block" }
+  ],
+  "keywordLists": {
+    "school": ["school", "high school", "middle school", "elementary"],
+    "grooming": ["don't tell", "secret", "meet up", "send pic", "alone", "parents won't know"]
+  }
+}

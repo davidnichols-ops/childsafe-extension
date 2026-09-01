@@ -1,0 +1,39 @@
+/* Injected at document_start so media starts hidden and is only revealed after classification. */
+img, video, iframe, [role="img"], svg, picture {
+  visibility: hidden !important;
+}
+
+.childsafe-masked {
+  visibility: visible !important;
+  filter: blur(24px) grayscale(80%) !important;
+  transition: filter 0.2s ease;
+}
+
+.childsafe-hidden {
+  visibility: hidden !important;
+  display: none !important;
+}
+
+.childsafe-warning {
+  border: 2px solid #d93025 !important;
+  background: #fce8e6 !important;
+  outline: none !important;
+}
+
+.childsafe-warning-label {
+  color: #d93025;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.options-page {
+  font-family: system-ui, sans-serif;
+  max-width: 520px;
+  margin: 24px auto;
+  padding: 16px;
+}
+
+.options-page label {
+  display: block;
+  margin: 12px 0;
+}

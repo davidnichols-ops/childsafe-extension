@@ -1,0 +1,19 @@
+{
+  "name": "childsafe-extension",
+  "version": "0.1.0",
+  "description": "Manifest V3 browser extension for child safety: client-side ML image/text/video filtering with tamper-evident policy and parental lock.",
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.js",
+    "sign": "node tools/sign-policy.js"
+  },
+  "dependencies": {
+    "nsfwjs": "^4.2.1",
+    "@tensorflow/tfjs": "^4.20.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.1"
+  },
+  "license": "MIT",
+  "repository": "github:davidnichols-ops/childsafe-extension"
+}
