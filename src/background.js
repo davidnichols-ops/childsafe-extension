@@ -65,6 +65,30 @@ async function updateDynamicBlocklist(blockedSites) {
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'fetch-image-url') {
+    // Background fetch bypasses CORS — the service worker has <all_urls> host permission.
+    // This is the fallback when canvas extraction in the content script fails (tainted canvas).
+    (async () => {
+      try {
+        const resp = await fetch(msg.url, { mode: 'cors', credentials: 'omit' });
+        if (!resp.ok) throw new Error(`fetch failed: ${resp.status}`);
+        const blob = await resp.blob();
+        // Limit to 5MB to avoid memory issues
+        if (blob.size > 5 * 1024 * 1024) throw new Error('image too large');
+        const reader = new FileReader();
+        const dataUrl = await new Promise((resolve, reject) => {
+          reader.onloadend = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('FileReader failed'));
+          reader.readAsDataURL(blob);
+        });
+        sendResponse({ dataUrl });
+      } catch (e) {
+        sendResponse({ error: e.message });
+      }
+    })();
+    return true;
+  }
+
   if (msg.type === 'classify-image') {
     (async () => {
       const backend = await getImageBackend();

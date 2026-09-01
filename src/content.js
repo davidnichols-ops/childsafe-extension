@@ -71,35 +71,38 @@ function applyVerdict(el, isUnsafe) {
 }
 
 async function dataUrlFromElement(el) {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = el.naturalWidth || el.videoWidth || el.width || 224;
-  canvas.height = el.naturalHeight || el.videoHeight || el.height || 224;
+  // Strategy 1: try canvas extraction directly (works for same-origin and data: URLs)
+  try {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = el.naturalWidth || el.videoWidth || el.width || 224;
+    canvas.height = el.naturalHeight || el.videoHeight || el.height || 224;
 
-  // Try to draw cross-origin images safely. If the image is already tainted,
-  // canvas.toDataURL will throw and the caller fails closed (keeps element masked).
-  if (el.tagName === 'IMG' && el.crossOrigin == null && !el.src.startsWith('data:')) {
-    try {
-      el.crossOrigin = 'anonymous';
-      // Forcing a reload with crossOrigin may re-request the image with CORS headers.
-      const reloaded = await new Promise((resolve, reject) => {
-        const tmp = new Image();
-        tmp.crossOrigin = 'anonymous';
-        tmp.onload = () => resolve(tmp);
-        tmp.onerror = () => reject(new Error('CORS reload failed'));
-        tmp.src = el.src;
+    // Check if image is broken/incomplete before drawing
+    if (el.tagName === 'IMG' && !el.complete) {
+      await new Promise((resolve) => {
+        if (el.complete) resolve();
+        else {
+          el.addEventListener('load', resolve, { once: true });
+          el.addEventListener('error', resolve, { once: true });
+        }
       });
-      ctx.drawImage(reloaded, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/jpeg', 0.85);
-    } catch {
-      // Fall through to the direct draw attempt, which may fail closed on a tainted canvas.
-      ctx.drawImage(el, 0, 0, canvas.width, canvas.height);
-      return canvas.toDataURL('image/jpeg', 0.85);
     }
-  }
+    if (el.tagName === 'IMG' && el.naturalWidth === 0) throw new Error('broken image');
 
-  ctx.drawImage(el, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', 0.85);
+    ctx.drawImage(el, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.85);
+  } catch (canvasErr) {
+    // Canvas extraction failed (tainted canvas, broken image, CORS).
+    // Strategy 2: ask the background service worker to fetch the image URL.
+    // The service worker has <all_urls> host permission and bypasses CORS.
+    if (el.src && el.src.startsWith('http')) {
+      const resp = await chrome.runtime.sendMessage({ type: 'fetch-image-url', url: el.src });
+      if (resp && resp.dataUrl) return resp.dataUrl;
+      throw new Error('background fetch also failed: ' + (resp && resp.error ? resp.error : canvasErr.message));
+    }
+    throw canvasErr;
+  }
 }
 
 async function classifyImage(dataUrl) {
