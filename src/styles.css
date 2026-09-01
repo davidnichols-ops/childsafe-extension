@@ -1,10 +1,6 @@
-/* Injected at document_start so media starts hidden and is only revealed after classification. */
-img, video, iframe, [role="img"], svg, picture {
-  visibility: hidden !important;
-}
-
+/* Images are visible by default. We only blur/hide when classification says unsafe.
+   This is "fail open" — if the model can't load or classification errors, images stay visible. */
 .childsafe-masked {
-  visibility: visible !important;
   filter: blur(24px) grayscale(80%) !important;
   transition: filter 0.2s ease;
 }
@@ -12,10 +8,6 @@ img, video, iframe, [role="img"], svg, picture {
 .childsafe-hidden {
   visibility: hidden !important;
   display: none !important;
-}
-
-.childsafe-visible {
-  visibility: visible !important;
 }
 
 .childsafe-warning {

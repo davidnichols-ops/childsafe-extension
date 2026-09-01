@@ -54,7 +54,6 @@ function hide(el) {
 function unmask(el) {
   if (!el) return;
   el.classList.remove('childsafe-masked', 'childsafe-hidden');
-  el.classList.add('childsafe-visible');
 }
 
 function applyVerdict(el, isUnsafe) {
@@ -130,17 +129,25 @@ async function scanImage(img) {
     log('image_blocked_host', currentHost());
     return;
   }
-  mask(img);
+  // Don't pre-mask. Classify first, then only mask if unsafe.
+  // This is "fail open" — if classification fails, the image stays visible.
   try {
     const dataUrl = await dataUrlFromElement(img);
     if (window.__childsafe) window.__childsafe.status[img.id || 'img'] = 'classifying';
-    const { predictions, error } = await classifyImage(dataUrl);
+    // Timeout: if classification takes more than 10s, show the image (fail open)
+    const result = await Promise.race([
+      classifyImage(dataUrl),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
+    ]);
+    const { predictions, error } = result;
     if (error) throw new Error(error);
     const unsafe = isUnsafePrediction(predictions);
     applyVerdict(img, unsafe);
     if (window.__childsafe) window.__childsafe.status[img.id || 'img'] = unsafe ? 'blocked' : 'safe';
     if (unsafe) log('image_blocked', predictions[0].className);
   } catch (e) {
+    // Fail open: unmask the image so it's visible
+    unmask(img);
     console.error('[ChildSafe] image scan failed', e);
     if (window.__childsafe) window.__childsafe.status[img.id || 'img'] = 'error: ' + e.message;
     log('image_scan_error', e.message);
@@ -156,7 +163,7 @@ async function scanVideo(video) {
     log('video_blocked_host', currentHost());
     return;
   }
-  mask(video);
+  // Don't pre-mask. Sample and classify, only mask if unsafe.
 
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -166,11 +173,19 @@ async function scanVideo(video) {
     canvas.height = 224;
     ctx.drawImage(video, 0, 0, 224, 224);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-    const { predictions, error } = await classifyImage(dataUrl);
-    if (error) return;
-    const unsafe = isUnsafePrediction(predictions);
-    applyVerdict(video, unsafe);
-    if (unsafe) log('video_blocked', predictions[0].className);
+    try {
+      const result = await Promise.race([
+        classifyImage(dataUrl),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
+      ]);
+      const { predictions, error } = result;
+      if (error) return;
+      const unsafe = isUnsafePrediction(predictions);
+      applyVerdict(video, unsafe);
+      if (unsafe) log('video_blocked', predictions[0].className);
+    } catch (e) {
+      // Fail open: leave video visible
+    }
   };
 
   video.addEventListener('play', () => {
