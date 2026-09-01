@@ -56,6 +56,8 @@ npm run build
 
 This outputs a `dist/` directory. Load it in Chrome as an unpacked extension.
 
+> **Note:** The default build produces a ~40 MB `offscreen.js` because `nsfwjs` bundles its MobileNetV2 model as base64 and pulls the full TensorFlow.js stack. To get under the 15–20 MB consumer-extension target, replace `nsfwjs` with an ONNX Runtime Web build using a quantized MobileViT/YOLO or INT8 NSFW model; the `offscreen.js` loader and message contract stay the same.
+
 ## Sign a custom policy (placeholder)
 
 ```bash
