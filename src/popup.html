@@ -2,16 +2,19 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <style>
-    body { width: 240px; padding: 12px; font-family: system-ui, sans-serif; }
-    h1 { font-size: 16px; margin: 0 0 8px; }
-    .status { font-size: 13px; color: #555; }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <h1>ChildSafe</h1>
-  <div id="status" class="status">Checking…</div>
-  <button id="options">Open settings</button>
+<body class="popup-body">
+  <h1>
+    <svg class="shield" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px">
+      <path d="M64 6 L118 24 V60 C118 92 96 112 64 122 C32 112 10 92 10 60 V24 Z" fill="#2563eb"/>
+      <path d="M40 64 L56 80 L90 44" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    ChildSafe
+  </h1>
+  <div class="popup-status" id="status">Checking…</div>
+  <div class="popup-incognito ok" id="incognito-status"></div>
+  <button id="options">Open Settings</button>
   <script src="popup.js"></script>
 </body>
 </html>

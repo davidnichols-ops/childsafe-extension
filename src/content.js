@@ -27,6 +27,7 @@ function hostInList(list) {
 }
 
 function shouldSkip() {
+  if (config.imageMode === 'disabled') return true;
   return hostInList(config.allowedSites);
 }
 

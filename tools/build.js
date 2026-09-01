@@ -32,9 +32,14 @@ function copyStatic() {
     }
   }
 
-  // Copy extension icons.
+  // Copy extension icons (only the sizes referenced in the manifest, not promo images).
   if (fs.existsSync('icons')) {
-    fs.cpSync('icons', path.join(outDir, 'icons'), { recursive: true, force: true });
+    fs.mkdirSync(path.join(outDir, 'icons'), { recursive: true });
+    for (const size of [16, 48, 128]) {
+      const file = `icon${size}.png`;
+      const src = path.join('icons', file);
+      if (fs.existsSync(src)) fs.copyFileSync(src, path.join(outDir, 'icons', file));
+    }
   }
 }
 

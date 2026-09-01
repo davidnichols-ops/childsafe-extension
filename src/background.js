@@ -144,3 +144,26 @@ chrome.runtime.onInstalled.addListener(async () => {
   await updateDynamicBlocklist(config.blockedSites);
   console.log('[ChildSafe] installed, default policy loaded');
 });
+
+// ===== Incognito monitoring =====
+// If the parent enabled incognito during onboarding but it gets disabled later,
+// show a warning badge on the extension icon.
+async function checkIncognitoBadge() {
+  const { config = {} } = await chrome.storage.local.get(['config']);
+  if (!config.onboarded || !config.incognitoRequired) return;
+  chrome.extension.isAllowedIncognitoAccess((allowed) => {
+    if (allowed) {
+      chrome.action.setBadgeText({ text: '' });
+    } else {
+      chrome.action.setBadgeText({ text: '!' });
+      chrome.action.setBadgeBackgroundColor({ color: '#d93025' });
+    }
+  });
+}
+
+// Check on startup and periodically
+checkIncognitoBadge();
+chrome.alarms?.create('incognito-check', { periodInMinutes: 5 });
+chrome.alarms?.onAlarm.addListener((alarm) => {
+  if (alarm.name === 'incognito-check') checkIncognitoBadge();
+});

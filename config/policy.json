@@ -2,7 +2,7 @@
   "schema": "childsafe/policy/v1",
   "imageBackend": "onnx",
   "onnxModelUrl": "https://huggingface.co/OwenElliott/image-safety-classifier-s/resolve/main/onnx/image-safety-classifier-s.onnx",
-  "sensitivity": 0.7,
+  "sensitivity": 0.65,
   "imageMode": "blur",
   "textEnabled": true,
   "textBackend": "regex",
@@ -12,6 +12,9 @@
   "allowedSites": [],
   "blockedSites": [],
   "blockedCategories": ["NSFW", "NSFL"],
+  "onboarded": false,
+  "protectionLevel": "basic",
+  "incognitoRequired": false,
   "piiPatterns": [
     { "name": "phone", "regex": "\\b\\d{3}[-.\\s]?\\d{3}[-.\\s]?\\d{4}\\b", "severity": "warn" },
     { "name": "email", "regex": "\\S+@\\S+\\.\\S+", "severity": "warn" },

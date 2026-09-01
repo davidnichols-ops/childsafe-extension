@@ -2,136 +2,270 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>ChildSafe Parental Control</title>
+  <title>ChildSafe — Parental Control</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="options-page">
-  <h1>ChildSafe Parental Control</h1>
 
-  <section id="lock-screen">
-    <p>This panel is parent-locked. Enter the PIN to continue.</p>
-    <input type="password" id="unlock-pin" placeholder="PIN" minlength="4">
-    <button id="unlock-btn">Unlock</button>
-    <div id="lock-status" class="status"></div>
-  </section>
+  <h1>
+    <svg class="shield" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+      <path d="M64 6 L118 24 V60 C118 92 96 112 64 122 C32 112 10 92 10 60 V24 Z" fill="#2563eb"/>
+      <path d="M40 64 L56 80 L90 44" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    ChildSafe
+  </h1>
 
-  <section id="setup-screen" hidden>
-    <p>Create a parent PIN to protect these settings.</p>
-    <input type="password" id="setup-pin" placeholder="PIN" minlength="4">
-    <input type="password" id="setup-pin-confirm" placeholder="Confirm PIN" minlength="4">
-    <button id="setup-btn">Set PIN &amp; Continue</button>
-    <div id="setup-status" class="status"></div>
-  </section>
+  <!-- ===== Onboarding wizard (first run) ===== -->
+  <div id="wizard">
+    <div class="wizard-progress" id="progress">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
 
-  <main id="panel" hidden>
-    <form id="settings">
-      <h2>Filtering</h2>
-      <label>
-        Image backend
-        <select id="imageBackend">
-          <option value="onnx">ONNX Runtime Web</option>
-        </select>
-      </label>
-      <label>
-        ONNX model preset
-        <select id="onnxModelPreset">
-          <option value="">— custom —</option>
-          <option value="owen">OwenElliott/image-safety-classifier-s</option>
-          <option value="falconsai">Falconsai/nsfw_image_detection_26</option>
-        </select>
-      </label>
-      <label>
-        ONNX model URL (leave blank for default)
-        <input type="text" id="onnxModelUrl" placeholder="https://huggingface.co/.../model.onnx">
-      </label>
-      <label>
-        Blocked categories (comma-separated)
-        <input type="text" id="blockedCategories" placeholder="Porn, Hentai, Sexy">
-      </label>
-      <label>
-        Sensitivity (0–1)
-        <input type="range" id="sensitivity" min="0" max="1" step="0.05" value="0.7">
-        <span id="sensitivity-val">0.7</span>
-      </label>
-      <label>
-        Image action
-        <select id="imageMode">
-          <option value="blur">Blur</option>
-          <option value="hide">Hide</option>
-          <option value="remove">Remove</option>
-        </select>
-      </label>
-      <label>
-        Text backend
-        <select id="textBackend">
-          <option value="regex">Regex keyword guard</option>
-          <option value="transformers">Transformers.js (Hugging Face / Xenova)</option>
-        </select>
-      </label>
-      <label>
-        Text model (Hugging Face / Xenova ID)
-        <input type="text" id="textModel" placeholder="Xenova/toxic-bert">
-      </label>
-      <label>
-        Text blocked categories (comma-separated)
-        <input type="text" id="textBlockedCategories" placeholder="toxic, severe_toxic, threat">
-      </label>
-      <label>
-        <input type="checkbox" id="textEnabled" checked>
-        Warn on PII / grooming keywords in text inputs
-      </label>
-      <label>
-        <input type="checkbox" id="networkBlockEnabled" checked>
-        Block known ad/malware networks
-      </label>
-
-      <h2>Change PIN</h2>
-      <label>
-        New PIN (leave blank to keep current)
-        <input type="password" id="new-pin" minlength="4">
-      </label>
-      <label>
-        Confirm new PIN
-        <input type="password" id="new-pin-confirm" minlength="4">
-      </label>
-
-      <button type="submit">Save settings</button>
-      <span id="save-status" class="status"></span>
-    </form>
-
-    <section id="lists">
-      <h2>Site lists</h2>
-      <div class="list-col">
-        <h3>Allowlist (skip scanning)</h3>
-        <div class="add-row">
-          <input type="text" id="allow-input" placeholder="example.com">
-          <button id="allow-add">Add</button>
+    <!-- Step 1: Welcome -->
+    <div class="wizard-step active" id="step-welcome">
+      <div class="card">
+        <h2>Welcome to ChildSafe</h2>
+        <p>ChildSafe protects your child from inappropriate images, videos, and text on the web — automatically and privately.</p>
+        <p class="muted">All scanning happens on your device. Nothing is ever sent to a server.</p>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btn-welcome-next">Get Started</button>
         </div>
-        <ul id="allow-list"></ul>
       </div>
-      <div class="list-col">
-        <h3>Blocklist (always block media)</h3>
-        <div class="add-row">
-          <input type="text" id="block-input" placeholder="example.com">
-          <button id="block-add">Add</button>
+    </div>
+
+    <!-- Step 2: Incognito / browser setup -->
+    <div class="wizard-step" id="step-incognito">
+      <div class="card">
+        <h2>Enable Private Browsing Protection</h2>
+        <p>Your child could open a private (incognito) window to bypass filtering. ChildSafe needs permission to run in private windows to prevent this.</p>
+        <div class="warn-box" id="incognito-warn">
+          <h3 id="incognito-browser-name">Detecting your browser…</h3>
+          <p id="incognito-instructions">Please wait.</p>
         </div>
-        <ul id="block-list"></ul>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="btn-incognito-back">Back</button>
+          <button class="btn btn-primary" id="btn-incognito-check">I've enabled it</button>
+          <button class="btn btn-primary" id="btn-incognito-skip" style="display:none">Continue anyway</button>
+        </div>
       </div>
-    </section>
+    </div>
 
-    <section id="logs">
-      <h2>Audit log <button id="clear-logs" class="secondary">Clear</button></h2>
-      <pre id="log-view">No events recorded.</pre>
-    </section>
+    <!-- Step 3: Set parent PIN -->
+    <div class="wizard-step" id="step-pin">
+      <div class="card">
+        <h2>Create a Parent PIN</h2>
+        <p>This PIN locks the settings so your child can't change them. Pick something only you know.</p>
+        <div class="pin-box">
+          <input type="password" id="wizard-pin" placeholder="Enter a PIN (4+ characters)" minlength="4">
+          <input type="password" id="wizard-pin-confirm" placeholder="Confirm PIN" minlength="4">
+        </div>
+        <div class="status-text" id="wizard-pin-status"></div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="btn-pin-back">Back</button>
+          <button class="btn btn-primary" id="btn-pin-next">Set PIN</button>
+        </div>
+      </div>
+    </div>
 
-    <section id="data">
-      <h2>Backup / restore</h2>
-      <button id="export-btn">Export settings &amp; logs</button>
-      <input type="file" id="import-file" accept="application/json">
-      <button id="import-btn">Import</button>
-      <span id="import-status" class="status"></span>
-    </section>
-  </main>
+    <!-- Step 4: Choose protection level -->
+    <div class="wizard-step" id="step-level">
+      <div class="card">
+        <h2>Choose Protection Level</h2>
+        <p>You can change this anytime.</p>
+        <div class="level-cards">
+          <div class="level-card selected" data-level="basic">
+            <h3>Recommended</h3>
+            <p>Blurs inappropriate images, warns on personal info in text, blocks ads. Good balance for most families.</p>
+          </div>
+          <div class="level-card" data-level="strict">
+            <h3>Maximum</h3>
+            <p>Completely hides inappropriate images. Stricter detection. Best for younger children.</p>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="btn-level-back">Back</button>
+          <button class="btn btn-primary" id="btn-level-finish">Finish Setup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PIN lock (returning users) ===== -->
+  <div id="lock-screen" style="display:none">
+    <div class="card" style="max-width:360px;margin:40px auto">
+      <h2>Enter Parent PIN</h2>
+      <p class="muted">These settings are locked. Enter your PIN to continue.</p>
+      <div class="pin-box">
+        <input type="password" id="unlock-pin" placeholder="PIN">
+      </div>
+      <div class="status-text" id="lock-status"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="unlock-btn">Unlock</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Main dashboard ===== -->
+  <div id="dashboard" style="display:none">
+
+    <!-- Status bar -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <span class="badge ok" id="protection-badge">Protected</span>
+        </div>
+        <div id="incognito-status-bar"></div>
+      </div>
+    </div>
+
+    <!-- Quick toggles -->
+    <div class="card">
+      <h2>What to Filter</h2>
+      <div class="toggle-row">
+        <div class="label-group">
+          <div class="title">Image & video filter</div>
+          <div class="desc">Scans images and videos for inappropriate content</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-images" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="label-group">
+          <div class="title">Text warnings</div>
+          <div class="desc">Warns your child before sharing personal info (phone, email, address)</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-text" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="toggle-row">
+        <div class="label-group">
+          <div class="title">Ad & malware blocker</div>
+          <div class="desc">Blocks known advertising and malware networks</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggle-ads" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Protection strength -->
+    <div class="card">
+      <h2>Protection Strength</h2>
+      <div class="range-row">
+        <div class="range-labels">
+          <span>Relaxed</span>
+          <span>Balanced</span>
+          <span>Strict</span>
+        </div>
+        <input type="range" id="strength-slider" min="0" max="2" step="1" value="1">
+        <div class="range-value" id="strength-label">Balanced</div>
+      </div>
+      <div class="range-row">
+        <div class="range-labels">
+          <span>What happens to bad images?</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-secondary" data-mode="blur" id="mode-blur">Blur</button>
+          <button class="btn btn-secondary" data-mode="hide" id="mode-hide">Hide completely</button>
+          <button class="btn btn-secondary" data-mode="remove" id="mode-remove">Remove</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Incognito status -->
+    <div class="card" id="incognito-card">
+      <h2>Private Browsing Protection</h2>
+      <div id="incognito-dashboard-content"></div>
+    </div>
+
+    <!-- Site lists -->
+    <div class="card">
+      <h2>Website Exceptions</h2>
+      <p class="muted">Add sites to skip (trusted) or always block.</p>
+      <div class="site-lists">
+        <div class="site-list-col">
+          <h3>Trusted sites (skip filtering)</h3>
+          <div class="add-row">
+            <input type="text" id="allow-input" placeholder="example.com">
+            <button class="btn btn-secondary" id="allow-add" style="margin:0;padding:6px 12px">Add</button>
+          </div>
+          <ul id="allow-list"></ul>
+        </div>
+        <div class="site-list-col">
+          <h3>Always block</h3>
+          <div class="add-row">
+            <input type="text" id="block-input" placeholder="example.com">
+            <button class="btn btn-secondary" id="block-add" style="margin:0;padding:6px 12px">Add</button>
+          </div>
+          <ul id="block-list"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity log -->
+    <div class="card">
+      <h2>Recent Activity <button class="btn btn-secondary" id="clear-logs" style="margin:0;padding:4px 12px;font-size:13px">Clear</button></h2>
+      <div class="log-view" id="log-view">No activity yet.</div>
+    </div>
+
+    <!-- Advanced settings -->
+    <details class="advanced">
+      <summary>Advanced settings</summary>
+      <div class="advanced-body">
+        <label>
+          Filter model (advanced)
+          <select id="adv-filter-model">
+            <option value="onnx">Built-in safety model</option>
+          </select>
+        </label>
+        <label>
+          Custom model URL (leave blank for default)
+          <input type="text" id="adv-model-url" placeholder="https://...">
+        </label>
+        <label>
+          Blocked categories (comma-separated)
+          <input type="text" id="adv-categories" placeholder="NSFW, NSFL">
+        </label>
+        <label>
+          Text filter model
+          <input type="text" id="adv-text-model" placeholder="Xenova/toxic-bert">
+        </label>
+        <label>
+          Text blocked categories (comma-separated)
+          <input type="text" id="adv-text-categories" placeholder="toxic, severe_toxic, threat">
+        </label>
+        <button class="btn btn-primary" id="adv-save">Save advanced settings</button>
+        <span class="status-text" id="adv-save-status"></span>
+      </div>
+    </details>
+
+    <!-- PIN change + data -->
+    <div class="card">
+      <h2>Security & Backup</h2>
+      <div class="pin-box" style="margin-bottom:16px">
+        <h3>Change PIN</h3>
+        <input type="password" id="new-pin" placeholder="New PIN (leave blank to keep)">
+        <input type="password" id="new-pin-confirm" placeholder="Confirm new PIN">
+      </div>
+      <div class="data-row" style="margin-bottom:16px">
+        <button class="btn btn-primary" id="save-pin">Update PIN</button>
+      </div>
+      <div class="status-text" id="pin-save-status"></div>
+      <hr style="border:none;border-top:1px solid #e8eaed;margin:16px 0">
+      <h3>Backup & Restore</h3>
+      <div class="data-row">
+        <button class="btn btn-secondary" id="export-btn">Export settings</button>
+        <input type="file" id="import-file" accept="application/json">
+        <button class="btn btn-secondary" id="import-btn">Import</button>
+        <span class="status-text" id="import-status"></span>
+      </div>
+    </div>
+  </div>
 
   <script src="options.js"></script>
 </body>
