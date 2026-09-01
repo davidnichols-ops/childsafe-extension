@@ -2,40 +2,100 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>ChildSafe Settings</title>
+  <title>ChildSafe Parental Control</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="options-page">
-  <h1>ChildSafe Parent Settings</h1>
-  <form id="settings">
-    <label>
-      Sensitivity (0–1)
-      <input type="range" id="sensitivity" min="0" max="1" step="0.05" value="0.7">
-      <span id="sensitivity-val">0.7</span>
-    </label>
-    <label>
-      Image action
-      <select id="imageMode">
-        <option value="blur">Blur</option>
-        <option value="hide">Hide</option>
-        <option value="remove">Remove</option>
-      </select>
-    </label>
-    <label>
-      <input type="checkbox" id="textEnabled" checked>
-      Warn on PII / grooming keywords in text inputs
-    </label>
-    <label>
-      <input type="checkbox" id="networkBlockEnabled" checked>
-      Block known ad/malware networks
-    </label>
-    <label>
-      Parent PIN (salted hash stored locally)
-      <input type="password" id="pin" minlength="4">
-    </label>
-    <button type="submit">Save</button>
-  </form>
-  <div id="status"></div>
+  <h1>ChildSafe Parental Control</h1>
+
+  <section id="lock-screen">
+    <p>This panel is parent-locked. Enter the PIN to continue.</p>
+    <input type="password" id="unlock-pin" placeholder="PIN" minlength="4">
+    <button id="unlock-btn">Unlock</button>
+    <div id="lock-status" class="status"></div>
+  </section>
+
+  <section id="setup-screen" hidden>
+    <p>Create a parent PIN to protect these settings.</p>
+    <input type="password" id="setup-pin" placeholder="PIN" minlength="4">
+    <input type="password" id="setup-pin-confirm" placeholder="Confirm PIN" minlength="4">
+    <button id="setup-btn">Set PIN &amp; Continue</button>
+    <div id="setup-status" class="status"></div>
+  </section>
+
+  <main id="panel" hidden>
+    <form id="settings">
+      <h2>Filtering</h2>
+      <label>
+        Sensitivity (0–1)
+        <input type="range" id="sensitivity" min="0" max="1" step="0.05" value="0.7">
+        <span id="sensitivity-val">0.7</span>
+      </label>
+      <label>
+        Image action
+        <select id="imageMode">
+          <option value="blur">Blur</option>
+          <option value="hide">Hide</option>
+          <option value="remove">Remove</option>
+        </select>
+      </label>
+      <label>
+        <input type="checkbox" id="textEnabled" checked>
+        Warn on PII / grooming keywords in text inputs
+      </label>
+      <label>
+        <input type="checkbox" id="networkBlockEnabled" checked>
+        Block known ad/malware networks
+      </label>
+
+      <h2>Change PIN</h2>
+      <label>
+        New PIN (leave blank to keep current)
+        <input type="password" id="new-pin" minlength="4">
+      </label>
+      <label>
+        Confirm new PIN
+        <input type="password" id="new-pin-confirm" minlength="4">
+      </label>
+
+      <button type="submit">Save settings</button>
+      <span id="save-status" class="status"></span>
+    </form>
+
+    <section id="lists">
+      <h2>Site lists</h2>
+      <div class="list-col">
+        <h3>Allowlist (skip scanning)</h3>
+        <div class="add-row">
+          <input type="text" id="allow-input" placeholder="example.com">
+          <button id="allow-add">Add</button>
+        </div>
+        <ul id="allow-list"></ul>
+      </div>
+      <div class="list-col">
+        <h3>Blocklist (always block media)</h3>
+        <div class="add-row">
+          <input type="text" id="block-input" placeholder="example.com">
+          <button id="block-add">Add</button>
+        </div>
+        <ul id="block-list"></ul>
+      </div>
+    </section>
+
+    <section id="logs">
+      <h2>Audit log <button id="clear-logs" class="secondary">Clear</button></h2>
+      <pre id="log-view">No events recorded.</pre>
+    </section>
+
+    <section id="data">
+      <h2>Backup / restore</h2>
+      <button id="export-btn">Export settings &amp; logs</button>
+      <input type="file" id="import-file" accept="application/json">
+      <button id="import-btn">Import</button>
+      <span id="import-status" class="status"></span>
+    </section>
+  </main>
+
   <script src="options.js"></script>
 </body>
 </html>

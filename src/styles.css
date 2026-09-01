@@ -27,13 +27,129 @@ img, video, iframe, [role="img"], svg, picture {
 }
 
 .options-page {
-  font-family: system-ui, sans-serif;
-  max-width: 520px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  max-width: 720px;
   margin: 24px auto;
   padding: 16px;
+  color: #202124;
+}
+
+.options-page h1, .options-page h2, .options-page h3 {
+  font-weight: 600;
+}
+
+.options-page h2 {
+  border-bottom: 1px solid #dadce0;
+  padding-bottom: 8px;
+  margin-top: 24px;
 }
 
 .options-page label {
   display: block;
   margin: 12px 0;
+}
+
+.options-page input[type="password"],
+.options-page input[type="text"],
+.options-page input[type="range"],
+.options-page select {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+}
+
+.options-page button {
+  padding: 8px 16px;
+  margin-top: 8px;
+  border: none;
+  border-radius: 4px;
+  background: #1a73e8;
+  color: white;
+  cursor: pointer;
+}
+
+.options-page button.secondary {
+  background: #fff;
+  color: #1a73e8;
+  border: 1px solid #dadce0;
+}
+
+.options-page button.small {
+  padding: 4px 8px;
+  margin: 0;
+}
+
+.options-page .status {
+  color: #5f6368;
+  margin-top: 4px;
+}
+
+#lock-screen, #setup-screen {
+  max-width: 320px;
+  margin: 40px auto;
+  padding: 24px;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+}
+
+#lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.list-col {
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.add-row {
+  display: flex;
+  gap: 8px;
+}
+
+.add-row input {
+  flex: 1;
+}
+
+.add-row button {
+  margin-top: 0;
+}
+
+#lists ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+
+#lists li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+#log-view {
+  background: #f8f9fa;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  padding: 12px;
+  max-height: 300px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+#data {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }

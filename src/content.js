@@ -9,6 +9,27 @@ chrome.storage.onChanged.addListener((changes) => {
   if (changes.config) config = { ...config, ...changes.config.newValue };
 });
 
+function currentHost() {
+  return window.location.hostname.replace(/^www\./, '');
+}
+
+function hostInList(list) {
+  const host = currentHost();
+  return (list || []).some((h) => host === h || host.endsWith('.' + h));
+}
+
+function shouldSkip() {
+  return hostInList(config.allowedSites);
+}
+
+function isBlockedHost() {
+  return hostInList(config.blockedSites);
+}
+
+function log(eventType, detail) {
+  chrome.runtime.sendMessage({ type: 'log-event', eventType, detail, url: window.location.href }).catch(() => {});
+}
+
 function mask(el) {
   if (!el) return;
   el.classList.add('childsafe-masked');
@@ -63,12 +84,20 @@ function isUnsafePrediction(predictions) {
 async function scanImage(img) {
   if (seen.has(img)) return;
   seen.add(img);
+  if (shouldSkip()) return;
+  if (isBlockedHost()) {
+    hide(img);
+    log('image_blocked_host', currentHost());
+    return;
+  }
   mask(img);
   try {
     const dataUrl = await dataUrlFromElement(img);
     const { predictions, error } = await classifyImage(dataUrl);
     if (error) throw new Error(error);
-    applyVerdict(img, isUnsafePrediction(predictions));
+    const unsafe = isUnsafePrediction(predictions);
+    applyVerdict(img, unsafe);
+    if (unsafe) log('image_blocked', predictions[0].className);
   } catch (e) {
     console.error('[ChildSafe] image scan failed', e);
     // Fail closed: keep masked.
@@ -78,6 +107,12 @@ async function scanImage(img) {
 async function scanVideo(video) {
   if (seen.has(video)) return;
   seen.add(video);
+  if (shouldSkip()) return;
+  if (isBlockedHost()) {
+    hide(video);
+    log('video_blocked_host', currentHost());
+    return;
+  }
   mask(video);
 
   const canvas = document.createElement('canvas');
@@ -90,7 +125,9 @@ async function scanVideo(video) {
     const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
     const { predictions, error } = await classifyImage(dataUrl);
     if (error) return;
-    applyVerdict(video, isUnsafePrediction(predictions));
+    const unsafe = isUnsafePrediction(predictions);
+    applyVerdict(video, unsafe);
+    if (unsafe) log('video_blocked', predictions[0].className);
   };
 
   video.addEventListener('play', () => {
@@ -136,13 +173,23 @@ function warnInput(el, warnings) {
 
 function attachTextGuard(el) {
   el.addEventListener('input', () => {
-    if (!config.textEnabled) return;
+    if (!config.textEnabled || shouldSkip()) return;
     const warnings = scanText(el.value);
-    if (warnings.length) warnInput(el, warnings);
-    else {
+    if (warnings.length) {
+      warnInput(el, warnings);
+      log('text_warning', warnings.join(','));
+    } else {
       el.classList.remove('childsafe-warning');
       const label = el.nextElementSibling;
       if (label && label.classList.contains('childsafe-warning-label')) label.remove();
+    }
+  });
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const warnings = scanText(el.value);
+      if (warnings.length && !confirm('This message may contain personal info. Are you sure you want to send it?')) {
+        e.preventDefault();
+      }
     }
   });
 }
