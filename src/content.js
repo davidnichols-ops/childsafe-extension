@@ -1,4 +1,12 @@
-let config = { sensitivity: 0.7, imageMode: 'blur', textEnabled: true };
+let config = {
+  sensitivity: 0.7,
+  imageMode: 'blur',
+  textEnabled: true,
+  textBackend: 'regex',
+  textModel: 'Xenova/toxic-bert',
+  textBlockedCategories: ['toxic', 'severe_toxic', 'threat', 'identity_hate'],
+  blockedCategories: ['Porn', 'Hentai', 'Sexy']
+};
 const seen = new WeakSet();
 
 chrome.storage.local.get(['config'], (res) => {
@@ -45,6 +53,7 @@ function hide(el) {
 function unmask(el) {
   if (!el) return;
   el.classList.remove('childsafe-masked', 'childsafe-hidden');
+  el.classList.add('childsafe-visible');
 }
 
 function applyVerdict(el, isUnsafe) {
@@ -66,6 +75,29 @@ async function dataUrlFromElement(el) {
   const ctx = canvas.getContext('2d');
   canvas.width = el.naturalWidth || el.videoWidth || el.width || 224;
   canvas.height = el.naturalHeight || el.videoHeight || el.height || 224;
+
+  // Try to draw cross-origin images safely. If the image is already tainted,
+  // canvas.toDataURL will throw and the caller fails closed (keeps element masked).
+  if (el.tagName === 'IMG' && el.crossOrigin == null && !el.src.startsWith('data:')) {
+    try {
+      el.crossOrigin = 'anonymous';
+      // Forcing a reload with crossOrigin may re-request the image with CORS headers.
+      const reloaded = await new Promise((resolve, reject) => {
+        const tmp = new Image();
+        tmp.crossOrigin = 'anonymous';
+        tmp.onload = () => resolve(tmp);
+        tmp.onerror = () => reject(new Error('CORS reload failed'));
+        tmp.src = el.src;
+      });
+      ctx.drawImage(reloaded, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    } catch {
+      // Fall through to the direct draw attempt, which may fail closed on a tainted canvas.
+      ctx.drawImage(el, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    }
+  }
+
   ctx.drawImage(el, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL('image/jpeg', 0.85);
 }
@@ -74,16 +106,23 @@ async function classifyImage(dataUrl) {
   return chrome.runtime.sendMessage({ type: 'classify-image', dataUrl });
 }
 
-function isUnsafePrediction(predictions) {
-  if (!predictions || !predictions[0]) return false;
-  const top = predictions[0];
-  const risky = ['Porn', 'Hentai', 'Sexy'];
-  return risky.includes(top.className) && top.probability >= config.sensitivity;
+async function classifyText(text) {
+  return chrome.runtime.sendMessage({ type: 'classify-text', text });
+}
+
+function isUnsafePrediction(predictions, blocked) {
+  if (!predictions || !predictions.length) return false;
+  const risky = blocked || config.blockedCategories || ['Porn', 'Hentai', 'Sexy'];
+  const maxBlocked = predictions
+    .filter((p) => risky.includes(p.className))
+    .reduce((m, p) => Math.max(m, p.probability), 0);
+  return maxBlocked >= config.sensitivity;
 }
 
 async function scanImage(img) {
   if (seen.has(img)) return;
   seen.add(img);
+  if (window.__childsafe) window.__childsafe.status[img.id || 'img'] = 'scanning';
   if (shouldSkip()) return;
   if (isBlockedHost()) {
     hide(img);
@@ -93,14 +132,17 @@ async function scanImage(img) {
   mask(img);
   try {
     const dataUrl = await dataUrlFromElement(img);
+    if (window.__childsafe) window.__childsafe.status[img.id || 'img'] = 'classifying';
     const { predictions, error } = await classifyImage(dataUrl);
     if (error) throw new Error(error);
     const unsafe = isUnsafePrediction(predictions);
     applyVerdict(img, unsafe);
+    if (window.__childsafe) window.__childsafe.status[img.id || 'img'] = unsafe ? 'blocked' : 'safe';
     if (unsafe) log('image_blocked', predictions[0].className);
   } catch (e) {
     console.error('[ChildSafe] image scan failed', e);
-    // Fail closed: keep masked.
+    if (window.__childsafe) window.__childsafe.status[img.id || 'img'] = 'error: ' + e.message;
+    log('image_scan_error', e.message);
   }
 }
 
@@ -149,7 +191,7 @@ const piiPatterns = [
 const schoolKeywords = ['school', 'high school', 'middle school', 'elementary'];
 const groomingKeywords = ["don't tell", 'secret', 'meet up', 'send pic', 'alone', "parents won't know"];
 
-function scanText(value) {
+function scanTextRegex(value) {
   const warnings = [];
   for (const p of piiPatterns) {
     if (p.regex.test(value)) warnings.push(p.name);
@@ -168,28 +210,52 @@ function warnInput(el, warnings) {
     label.className = 'childsafe-warning-label';
     el.parentNode.insertBefore(label, el.nextSibling);
   }
-  label.textContent = `⚠ ChildSafe warning: ${warnings.join(', ')}`;
+  label.textContent = `ChildSafe warning: ${warnings.join(', ')}`;
+}
+
+function textLooksUnsafe(predictions) {
+  const risky = config.textBlockedCategories || ['toxic', 'severe_toxic', 'threat', 'identity_hate'];
+  return isUnsafePrediction(predictions, risky);
+}
+
+async function scanText(value) {
+  const warnings = scanTextRegex(value);
+  if (config.textBackend === 'transformers' && value.length > 2) {
+    try {
+      const { predictions, error } = await classifyText(value);
+      if (error) throw new Error(error);
+      if (textLooksUnsafe(predictions)) {
+        const top = predictions[0];
+        warnings.push(`ml:${top.className}(${(top.probability * 100).toFixed(0)}%)`);
+      }
+    } catch (e) {
+      console.warn('[ChildSafe] text ML classification failed', e);
+    }
+  }
+  return [...new Set(warnings)];
 }
 
 function attachTextGuard(el) {
   el.addEventListener('input', () => {
     if (!config.textEnabled || shouldSkip()) return;
-    const warnings = scanText(el.value);
-    if (warnings.length) {
-      warnInput(el, warnings);
-      log('text_warning', warnings.join(','));
-    } else {
-      el.classList.remove('childsafe-warning');
-      const label = el.nextElementSibling;
-      if (label && label.classList.contains('childsafe-warning-label')) label.remove();
-    }
+    scanText(el.value).then((warnings) => {
+      if (warnings.length) {
+        warnInput(el, warnings);
+        log('text_warning', warnings.join(','));
+      } else {
+        el.classList.remove('childsafe-warning');
+        const label = el.nextElementSibling;
+        if (label && label.classList.contains('childsafe-warning-label')) label.remove();
+      }
+    });
   });
   el.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-      const warnings = scanText(el.value);
-      if (warnings.length && !confirm('This message may contain personal info. Are you sure you want to send it?')) {
-        e.preventDefault();
-      }
+      scanText(el.value).then((warnings) => {
+        if (warnings.length && !confirm('This message may contain personal info. Are you sure you want to send it?')) {
+          e.preventDefault();
+        }
+      });
     }
   });
 }
@@ -207,8 +273,13 @@ const io = new IntersectionObserver((entries) => {
 function observeElement(el) {
   if (!el || el.dataset.childsafeObserved) return;
   el.dataset.childsafeObserved = '1';
-  if (el.tagName === 'IMG' || el.tagName === 'VIDEO') io.observe(el);
-  if (el.matches?.('textarea, input[type="text"], input:not([type])')) attachTextGuard(el);
+  if (el.tagName === 'IMG') {
+    scanImage(el);
+  } else if (el.tagName === 'VIDEO') {
+    scanVideo(el);
+  } else if (el.matches?.('textarea, input[type="text"], input:not([type])')) {
+    attachTextGuard(el);
+  }
 }
 
 function scanNode(node) {
@@ -229,3 +300,16 @@ mo.observe(document.documentElement, { childList: true, subtree: true });
 for (const el of document.querySelectorAll('img, video, textarea, input[type="text"], input:not([type])')) {
   observeElement(el);
 }
+
+window.__childsafe = {
+  scanImage,
+  dataUrlFromElement,
+  classifyImage,
+  isUnsafePrediction,
+  applyVerdict,
+  mask,
+  unmask,
+  hide,
+  getConfig: () => config,
+  status: {}
+};

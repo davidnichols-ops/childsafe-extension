@@ -27,6 +27,29 @@
     <form id="settings">
       <h2>Filtering</h2>
       <label>
+        Image backend
+        <select id="imageBackend">
+          <option value="nsfwjs">nsfwjs (TensorFlow.js / MobileNetV2)</option>
+          <option value="onnx">ONNX Runtime Web</option>
+        </select>
+      </label>
+      <label>
+        ONNX model preset
+        <select id="onnxModelPreset">
+          <option value="">— custom —</option>
+          <option value="owen">OwenElliott/image-safety-classifier-s</option>
+          <option value="falconsai">Falconsai/nsfw_image_detection_26</option>
+        </select>
+      </label>
+      <label>
+        ONNX model URL (leave blank for default)
+        <input type="text" id="onnxModelUrl" placeholder="https://huggingface.co/.../model.onnx">
+      </label>
+      <label>
+        Blocked categories (comma-separated)
+        <input type="text" id="blockedCategories" placeholder="Porn, Hentai, Sexy">
+      </label>
+      <label>
         Sensitivity (0–1)
         <input type="range" id="sensitivity" min="0" max="1" step="0.05" value="0.7">
         <span id="sensitivity-val">0.7</span>
@@ -38,6 +61,21 @@
           <option value="hide">Hide</option>
           <option value="remove">Remove</option>
         </select>
+      </label>
+      <label>
+        Text backend
+        <select id="textBackend">
+          <option value="regex">Regex keyword guard</option>
+          <option value="transformers">Transformers.js (Hugging Face / Xenova)</option>
+        </select>
+      </label>
+      <label>
+        Text model (Hugging Face / Xenova ID)
+        <input type="text" id="textModel" placeholder="Xenova/toxic-bert">
+      </label>
+      <label>
+        Text blocked categories (comma-separated)
+        <input type="text" id="textBlockedCategories" placeholder="toxic, severe_toxic, threat">
       </label>
       <label>
         <input type="checkbox" id="textEnabled" checked>

@@ -14,6 +14,10 @@ img, video, iframe, [role="img"], svg, picture {
   display: none !important;
 }
 
+.childsafe-visible {
+  visibility: visible !important;
+}
+
 .childsafe-warning {
   border: 2px solid #d93025 !important;
   background: #fce8e6 !important;

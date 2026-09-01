@@ -1,15 +1,31 @@
-const OFFSCREEN_PATH = chrome.runtime.getURL('offscreen.html');
+const OFFSCREEN_PATHS = {
+  nsfwjs: chrome.runtime.getURL('offscreen.html'),
+  onnx: chrome.runtime.getURL('offscreen-onnx.html'),
+  text: chrome.runtime.getURL('offscreen-text.html')
+};
 const DEFAULT_POLICY = chrome.runtime.getURL('config/policy.json');
 const LOG_LIMIT = 500;
 
-async function setupOffscreen() {
+async function getImageBackend() {
+  const { config = {} } = await chrome.storage.local.get(['config']);
+  return config.imageBackend || 'nsfwjs';
+}
+
+async function setupOffscreen(kind) {
+  const url = OFFSCREEN_PATHS[kind] || OFFSCREEN_PATHS.nsfwjs;
   const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
-  if (contexts.length > 0) return;
+  if (contexts.length > 0 && contexts[0].documentUrl === url) return;
+  if (contexts.length > 0) await chrome.offscreen.closeDocument();
   await chrome.offscreen.createDocument({
-    url: OFFSCREEN_PATH,
+    url,
     reasons: ['WORKERS'],
-    justification: 'Run TensorFlow.js image classification outside the service worker.'
+    justification: 'Run ML inference (image or text) outside the service worker.'
   });
+}
+
+async function restoreImageOffscreen() {
+  const backend = await getImageBackend();
+  await setupOffscreen(backend);
 }
 
 async function applyNetworkBlocking(enabled) {
@@ -52,9 +68,25 @@ async function updateDynamicBlocklist(blockedSites) {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'classify-image') {
     (async () => {
-      await setupOffscreen();
+      const backend = await getImageBackend();
+      await setupOffscreen(backend);
       const result = await chrome.runtime.sendMessage({ ...msg, type: 'classify-image-internal' });
       sendResponse(result);
+    })();
+    return true;
+  }
+
+  if (msg.type === 'classify-text') {
+    (async () => {
+      try {
+        await setupOffscreen('text');
+        const result = await chrome.runtime.sendMessage({ type: 'classify-text-internal', text: msg.text });
+        // Swap back to the image offscreen so the next image classification is ready.
+        restoreImageOffscreen().catch(() => {});
+        sendResponse(result);
+      } catch (e) {
+        sendResponse({ error: e.message });
+      }
     })();
     return true;
   }
@@ -75,6 +107,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
+  if (msg.type === 'get-config') {
+    (async () => {
+      const { config = {} } = await chrome.storage.local.get(['config']);
+      sendResponse({ config });
+    })();
+    return true;
+  }
+
   if (msg.type === 'clear-logs') {
     (async () => {
       await chrome.storage.local.set({ logs: [] });
@@ -87,6 +127,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     (async () => {
       await applyNetworkBlocking(msg.config.networkBlockEnabled);
       await updateDynamicBlocklist(msg.config.blockedSites);
+      await restoreImageOffscreen();
       sendResponse({ ok: true });
     })();
     return true;
@@ -97,8 +138,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 chrome.runtime.onInstalled.addListener(async () => {
   const defaultPolicy = await fetch(DEFAULT_POLICY).then((r) => r.json());
-  await chrome.storage.local.set({ policy: defaultPolicy, config: defaultPolicy, logs: [] });
-  await applyNetworkBlocking(defaultPolicy.networkBlockEnabled);
-  await updateDynamicBlocklist(defaultPolicy.blockedSites);
+  const { config: existing } = await chrome.storage.local.get(['config']);
+  const config = { ...defaultPolicy, ...(existing || {}) };
+  await chrome.storage.local.set({ policy: defaultPolicy, config, logs: [] });
+  await applyNetworkBlocking(config.networkBlockEnabled);
+  await updateDynamicBlocklist(config.blockedSites);
   console.log('[ChildSafe] installed, default policy loaded');
 });

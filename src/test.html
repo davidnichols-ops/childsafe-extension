@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ChildSafe test page</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    img { width: 200px; height: 200px; margin: 10px; }
+    textarea { width: 400px; height: 80px; }
+  </style>
+</head>
+<body>
+  <h1>ChildSafe end-to-end test</h1>
+  <p>Open the extension options to set the image backend, then reload this page.</p>
+
+  <img id="safe" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='224' height='224'%3E%3Crect width='224' height='224' fill='blue'/%3E%3C/svg%3E" alt="safe">
+  <img id="unsafe" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='224' height='224'%3E%3Crect width='224' height='224' fill='red'/%3E%3C/svg%3E" alt="unsafe">
+
+  <h2>Text guard test</h2>
+  <textarea id="msg" placeholder="Type 'I go to middle school and live at 123 Main St'"></textarea>
+
+  <script>
+    window.addEventListener('load', () => {
+      console.log('[test page] loaded', document.images.length, 'images');
+    });
+  </script>
+</body>
+</html>

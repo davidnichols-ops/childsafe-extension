@@ -39,12 +39,64 @@ async function loadData() {
   currentLogs = logs;
 }
 
+const DEFAULT_ONNX_MODEL = 'https://huggingface.co/OwenElliott/image-safety-classifier-s/resolve/main/onnx/image-safety-classifier-s.onnx';
+const FALCONSAI_MODEL_URL = 'https://huggingface.co/Falconsai/nsfw_image_detection_26/resolve/main/quantized_onnx/model.onnx';
+const BACKEND_BLOCKED_CATEGORIES = {
+  nsfwjs: ['Porn', 'Hentai', 'Sexy'],
+  onnx: ['NSFW', 'NSFL']
+};
+const ONNX_MODEL_PRESETS = {
+  owen: DEFAULT_ONNX_MODEL,
+  falconsai: FALCONSAI_MODEL_URL
+};
+
 function renderSettings() {
+  $('imageBackend').value = currentConfig.imageBackend ?? 'nsfwjs';
+  $('onnxModelUrl').value = currentConfig.onnxModelUrl ?? DEFAULT_ONNX_MODEL;
+  $('blockedCategories').value = (currentConfig.blockedCategories ?? BACKEND_BLOCKED_CATEGORIES.nsfwjs).join(', ');
   $('sensitivity').value = currentConfig.sensitivity ?? 0.7;
   $('sensitivity-val').textContent = $('sensitivity').value;
   $('imageMode').value = currentConfig.imageMode ?? 'blur';
+  $('textBackend').value = currentConfig.textBackend ?? 'regex';
+  $('textModel').value = currentConfig.textModel ?? 'Xenova/toxic-bert';
+  $('textBlockedCategories').value = (currentConfig.textBlockedCategories ?? ['toxic', 'severe_toxic', 'threat', 'identity_hate']).join(', ');
   $('textEnabled').checked = currentConfig.textEnabled ?? true;
   $('networkBlockEnabled').checked = currentConfig.networkBlockEnabled ?? true;
+}
+
+function setBackendDefaults() {
+  const backend = $('imageBackend').value;
+  const cats = $('blockedCategories').value.trim();
+  if (!cats) {
+    $('blockedCategories').value = BACKEND_BLOCKED_CATEGORIES[backend].join(', ');
+  }
+  const url = $('onnxModelUrl').value.trim();
+  if (backend === 'onnx' && !url) {
+    $('onnxModelUrl').value = DEFAULT_ONNX_MODEL;
+  }
+}
+
+function setOnnxModelPreset() {
+  const preset = $('onnxModelPreset')?.value;
+  if (preset && ONNX_MODEL_PRESETS[preset]) {
+    $('onnxModelUrl').value = ONNX_MODEL_PRESETS[preset];
+    if (preset === 'falconsai') {
+      $('blockedCategories').value = 'NSFW';
+    } else if (preset === 'owen') {
+      $('blockedCategories').value = BACKEND_BLOCKED_CATEGORIES.onnx.join(', ');
+    }
+  }
+}
+
+function setTextBackendDefaults() {
+  const backend = $('textBackend').value;
+  const cats = $('textBlockedCategories').value.trim();
+  if (!cats) {
+    $('textBlockedCategories').value = ['toxic', 'severe_toxic', 'threat', 'identity_hate'].join(', ');
+  }
+  if (backend === 'transformers' && !$('textModel').value.trim()) {
+    $('textModel').value = 'Xenova/toxic-bert';
+  }
 }
 
 function renderLists() {
@@ -154,8 +206,20 @@ async function submitSettings(e) {
     const salt = crypto.getRandomValues(new Uint8Array(16));
     currentConfig.pinHash = await hashPin(newPin, salt);
   }
+  currentConfig.imageBackend = $('imageBackend').value;
+  currentConfig.onnxModelUrl = $('onnxModelUrl').value.trim() || DEFAULT_ONNX_MODEL;
+  currentConfig.blockedCategories = $('blockedCategories').value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   currentConfig.sensitivity = parseFloat($('sensitivity').value);
   currentConfig.imageMode = $('imageMode').value;
+  currentConfig.textBackend = $('textBackend').value;
+  currentConfig.textModel = $('textModel').value.trim() || 'Xenova/toxic-bert';
+  currentConfig.textBlockedCategories = $('textBlockedCategories').value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   currentConfig.textEnabled = $('textEnabled').checked;
   currentConfig.networkBlockEnabled = $('networkBlockEnabled').checked;
   await saveConfig(currentConfig);
@@ -212,6 +276,9 @@ async function init() {
   $('unlock-btn').addEventListener('click', unlock);
   $('setup-btn').addEventListener('click', setupPin);
   $('settings').addEventListener('submit', submitSettings);
+  $('imageBackend').addEventListener('change', setBackendDefaults);
+  $('onnxModelPreset')?.addEventListener('change', setOnnxModelPreset);
+  $('textBackend').addEventListener('change', setTextBackendDefaults);
   $('allow-add').addEventListener('click', () => addSite('allow-input', 'allowedSites'));
   $('block-add').addEventListener('click', () => addSite('block-input', 'blockedSites'));
   $('clear-logs').addEventListener('click', clearLogs);
