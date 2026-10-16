@@ -1,3 +1,5 @@
+> **Unmaintained as of 2026-10-16.** Not a shipped or audited safety product. Do not install this for a child. The tree is kept as a record only.
+
 # ChildSafe Extension
 
 A privacy-first, Manifest V3 browser extension for child safety. It combines client-side ML with tamper-evident policy enforcement:
